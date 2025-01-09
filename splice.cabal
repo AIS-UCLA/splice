@@ -38,7 +38,7 @@ source-repository head
 
 
 flag portable
-    description: force portable 'splice' implementation on GNU\/Linux
+    description: force portable 'splice' implementation
     default    : False
 
 
@@ -58,8 +58,12 @@ library
       exposed-modules:   System.IO.Splice.Linux
       build-depends:     unix    >= 2 && <= 4
       cpp-options:       -DLINUX_SPLICE
+    if os(freebsd) && !flag(portable)
+      exposed-modules:   System.IO.Splice.FreeBSD
+      build-depends:     unix    >= 2 && <= 4
+      cpp-options:       -DFREEBSD
 
-      
+
     ghc-options:         -Wall -O2
 
     if flag(llvm)

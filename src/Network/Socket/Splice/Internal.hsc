@@ -11,6 +11,14 @@
 #ifdef LINUX_SPLICE
 #include <fcntl.h>
 #endif
+
+#ifdef FREEBSD
+#include <osreldate.h>
+#if __FreeBSD_version >= 1402000
+#define FREEBSD_SPLICE
+#endif
+#endif -- FREEBSD
+
 {-# LANGUAGE CPP, ForeignFunctionInterface #-}
 
 
@@ -57,6 +65,8 @@ module Network.Socket.Splice.Internal (
   , hSplice
 #ifdef LINUX_SPLICE
   , fdSplice
+#elif defined FREEBSD_SPLICE
+  , soSplice
 #endif
 
   ) where
@@ -80,6 +90,12 @@ import Foreign.C.Error
 import System.Posix.Types
 import System.Posix.Internals
 import qualified System.IO.Splice.Linux as L
+#elif defined FREEBSD_SPLICE
+import System.Posix.Types
+import Foreign.C.Error
+import Foreign.Storable
+import Foreign.Marshal.Utils
+import qualified System.IO.Splice.FreeBSD as F
 #else
 import Data.Maybe
 #endif
@@ -92,7 +108,7 @@ import Data.Maybe
 --   space Haskell implementation.
 zeroCopy :: Bool -- ^ @True@ if 'splice' uses zero-copy system calls; otherwise, false.
 zeroCopy =
-#ifdef LINUX_SPLICE
+#if defined LINUX_SPLICE || defined FREEBSD_SPLICE
   True
 #else
   False
@@ -143,8 +159,8 @@ splice
   -> (Socket, Maybe Handle)  -- ^ source socket and possibly its opened handle.
   -> (Socket, Maybe Handle)  -- ^ target socket and possibly its opened handle.
   -> IO ()                   -- ^ infinite loop.
-#ifdef LINUX_SPLICE
-splice len (sIn, _  ) (sOut, _   ) = do
+#if defined LINUX_SPLICE || defined FREEBSD_SPLICE
+splice _ (sIn, _  ) (sOut, _   ) = do
 #else
 splice len (_  , hIn) (_   , hOut) = do
 #endif
@@ -152,6 +168,10 @@ splice len (_  , hIn) (_   , hOut) = do
   let s = Fd $! fdSocket sIn
   let t = Fd $! fdSocket sOut
   fdSplice len s t
+#elif defined FREEBSD_SPLICE
+  s <- Fd <$> unsafeFdSocket sIn
+  t <- Fd <$> unsafeFdSocket sOut
+  soSplice s t
 #else
   let s = fromJust hIn
   let t = fromJust hOut
@@ -196,6 +216,15 @@ fdSplice len s@(Fd fdIn) t@(Fd fdOut) = do
 
 #endif
 
+#ifdef FREEBSD_SPLICE
+soSplice :: Fd -> Fd -> IO ()
+soSplice s t = do
+  let check = throwErrnoIfMinus1 "Network.Socket.Splice.splice"
+  let tv = F.StructTimeval { F.tv_sec = 0, F.tv_usec = 0 }
+  opt <- new $ F.StructSplice { F.sp_fd = t, F.sp_max = 0, F.sp_idle = tv }
+  void $ check $! F.c_setsockopt s F.sOL_SOCKET F.sO_SPLICE opt (sizeOf $ F.StructSplice {})
+  free opt
+#endif
 
 ---------------------------------------------------------------------------------------------HSPLICE
 
