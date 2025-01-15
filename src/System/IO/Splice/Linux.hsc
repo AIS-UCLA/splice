@@ -12,6 +12,7 @@
 
 
 #include <fcntl.h>
+#include <sys/types.h>
 {-# LANGUAGE CPP, ForeignFunctionInterface #-}
 
 

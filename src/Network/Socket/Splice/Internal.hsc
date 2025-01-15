@@ -10,6 +10,7 @@
 
 #ifdef LINUX_SPLICE
 #include <fcntl.h>
+#include <sys/types.h>
 #endif
 
 #ifdef FREEBSD
@@ -83,7 +84,6 @@ import Foreign.Marshal.Alloc
 
 #ifdef LINUX_SPLICE
 import Data.Int
-import Data.Bits
 import System.Posix.IO
 import Unsafe.Coerce
 import Foreign.C.Error
@@ -159,14 +159,16 @@ splice
   -> (Socket, Maybe Handle)  -- ^ source socket and possibly its opened handle.
   -> (Socket, Maybe Handle)  -- ^ target socket and possibly its opened handle.
   -> IO ()                   -- ^ infinite loop.
-#if defined LINUX_SPLICE || defined FREEBSD_SPLICE
+#ifdef LINUX_SPLICE
+splice len (sIn, _  ) (sOut, _   ) = do
+#elif defined FREEBSD_SPLICE
 splice _ (sIn, _  ) (sOut, _   ) = do
 #else
 splice len (_  , hIn) (_   , hOut) = do
 #endif
 #ifdef LINUX_SPLICE
-  let s = Fd $! fdSocket sIn
-  let t = Fd $! fdSocket sOut
+  s <- Fd <$> unsafeFdSocket sIn
+  t <- Fd <$> unsafeFdSocket sOut
   fdSplice len s t
 #elif defined FREEBSD_SPLICE
   s <- Fd <$> unsafeFdSocket sIn
