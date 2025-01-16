@@ -17,8 +17,9 @@
 #include <osreldate.h>
 #if __FreeBSD_version >= 1402000
 #define FREEBSD_SPLICE
+#include <sys/socket.h>
 #endif
-#endif -- FREEBSD
+#endif
 
 {-# LANGUAGE CPP, ForeignFunctionInterface #-}
 
@@ -92,9 +93,6 @@ import System.Posix.Internals
 import qualified System.IO.Splice.Linux as L
 #elif defined FREEBSD_SPLICE
 import System.Posix.Types
-import Foreign.C.Error
-import Foreign.Storable
-import Foreign.Marshal.Utils
 import qualified System.IO.Splice.FreeBSD as F
 #else
 import Data.Maybe
@@ -171,9 +169,8 @@ splice len (_  , hIn) (_   , hOut) = do
   t <- Fd <$> unsafeFdSocket sOut
   fdSplice len s t
 #elif defined FREEBSD_SPLICE
-  s <- Fd <$> unsafeFdSocket sIn
   t <- Fd <$> unsafeFdSocket sOut
-  soSplice s t
+  soSplice sIn t
 #else
   let s = fromJust hIn
   let t = fromJust hOut
@@ -219,13 +216,11 @@ fdSplice len s@(Fd fdIn) t@(Fd fdOut) = do
 #endif
 
 #ifdef FREEBSD_SPLICE
-soSplice :: Fd -> Fd -> IO ()
+soSplice :: Socket -> Fd -> IO ()
 soSplice s t = do
-  let check = throwErrnoIfMinus1 "Network.Socket.Splice.splice"
   let tv = F.StructTimeval { F.tv_sec = 0, F.tv_usec = 0 }
-  opt <- new $ F.StructSplice { F.sp_fd = t, F.sp_max = 0, F.sp_idle = tv }
-  void $ check $! F.c_setsockopt s F.sOL_SOCKET F.sO_SPLICE opt (sizeOf $ F.StructSplice {})
-  free opt
+  let spl = F.StructSplice { F.sp_fd = t, F.sp_max = 0, F.sp_idle = tv }
+  setSockOpt s (SockOpt (#const SOL_SOCKET) (#const SO_SPLICE)) spl
 #endif
 
 ---------------------------------------------------------------------------------------------HSPLICE

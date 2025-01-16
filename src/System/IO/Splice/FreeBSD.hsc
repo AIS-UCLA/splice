@@ -19,7 +19,6 @@
 
 module System.IO.Splice.FreeBSD (
 
-    c_setsockopt,
     sOL_SOCKET,
     sO_SPLICE,
     StructTimeval(..),
@@ -29,21 +28,11 @@ module System.IO.Splice.FreeBSD (
 
 
 import Data.Int
-import Foreign.Ptr
 import Foreign.C.Types
 import System.Posix.Types
 import Foreign.Storable
 import Control.Monad (ap)
 
-
-foreign import ccall "setsockopt"
-  c_setsockopt
-  :: Fd             -- ^ @s@.
-  -> Word           -- ^ @level@.
-  -> Word           -- ^ @optname@.
-  -> Ptr a          -- ^ @optval@.
-  -> Int            -- ^ @optlen@.
-  -> IO (Word)      -- ^ 0 if successful; otherwise -1.
 
 sOL_SOCKET :: Word
 sOL_SOCKET = (#const "SOL_SOCKET")
