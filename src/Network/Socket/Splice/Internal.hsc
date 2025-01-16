@@ -92,6 +92,7 @@ import System.Posix.Types
 import System.Posix.Internals
 import qualified System.IO.Splice.Linux as L
 #elif defined FREEBSD_SPLICE
+import Control.Concurrent (yield)
 import System.Posix.Types
 import qualified System.IO.Splice.FreeBSD as F
 #else
@@ -221,6 +222,7 @@ soSplice s t = do
   let tv = F.StructTimeval { F.tv_sec = 0, F.tv_usec = 0 }
   let spl = F.StructSplice { F.sp_fd = t, F.sp_max = 0, F.sp_idle = tv }
   setSockOpt s (SockOpt (#const SOL_SOCKET) (#const SO_SPLICE)) spl
+  forever yield
 #endif
 
 ---------------------------------------------------------------------------------------------HSPLICE
